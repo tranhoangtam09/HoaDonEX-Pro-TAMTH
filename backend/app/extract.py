@@ -101,7 +101,7 @@ def _parse_pdf_layout(data,x):
   if not doc:return x
   blocks=_pdf_blocks(doc[0])
   header=[b[3] for b in blocks if re.search(r"ký hiệu|\\(sign\\)|\\bSố\\b|\\(no\\)",b[3],re.I)]
-  header_text="\\n".join(header+[b[3] for b in blocks if re.search(r"\\b\\d{1,2}[A-Z][A-Z0-9/-]{2,}\\b|\\b\\d{5,}\\b",b[3]) and b[0]<270 and b[1]<320])
+  header_text="\\n".join(header+[b[3] for b in blocks if re.search(r"\\b\\d{1,2}[A-Z][A-Z0-9/-]{2,}\\b|\\b\\d{5,}\\b",b[3]) and 160<=b[0]<=280])
   sm=re.search(r"\\b(\\d{1,2}[A-Z][A-Z0-9/-]{2,})\\b",header_text,re.I)
   nm=re.search(r"(?<!\\d)(\\d{5,})(?!\\d)",header_text)
   if sm:x["invoice_form"],x["invoice_symbol"]=split_symbol(sm.group(1))
