@@ -106,6 +106,12 @@ def _parse_pdf_layout(data,x):
   nm=re.search(r"(?<!\\d)(\\d{5,})(?!\\d)",header_text)
   if sm:x["invoice_form"],x["invoice_symbol"]=split_symbol(sm.group(1))
   if nm:x["invoice_number"]=nm.group(1)
+  # MeInvoice may place "Ngày/năm" in separate text blocks.
+  date_text=" ".join(b[3] for b in blocks if 150<=b[0]<=310)
+  dm=re.search(r"(\\d{1,2})\\s+tháng\\s+(\\d{1,2})\\s+(?:năm\\s*)?(\\d{4})",date_text,re.I)
+  if dm:
+   try:x["invoice_date"]=datetime.date(int(dm.group(3)),int(dm.group(2)),int(dm.group(1))).isoformat()
+   except ValueError:pass
   seller_idx=next((i for i,b in enumerate(blocks) if re.search(r"đơn vị bán hàng",b[3],re.I)),None)
   if seller_idx is not None:
    label_block=blocks[seller_idx][3]
