@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "desktop_app.py"
+      - "installer.iss"
       - "backend/**"
       - "frontend/**"
       - ".github/workflows/build-windows-exe.yml"
