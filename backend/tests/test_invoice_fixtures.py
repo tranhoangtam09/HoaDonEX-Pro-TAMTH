@@ -38,3 +38,19 @@ def test_actual_pdf_regression_set_if_present():
   x=extract(p.read_bytes(),name)
   assert x["tax_code"]=="1400147351" and x["invoice_number"]==num and x["invoice_date"]==day and x["total_amount"]==total
   assert x["buyer_name"]=="DOANH NGHIỆP TƯ NHÂN KIM TIẾN" and x["buyer_tax_code"]=="1900325771"
+
+def test_vietnamese_einvoice_xml_sections_and_iso_date():
+ from app.extract import extract
+ xml=b"""<?xml version="1.0" encoding="UTF-8"?>
+ <HDon><DLHDon><TTChung><KHMSHDon>1</KHMSHDon><KHHDon>K26TKD</KHHDon><SHDon>16573</SHDon><NLap>2026-10-14</NLap><DVTTe>VND</DVTTe></TTChung>
+ <NDHDon><NBan><Ten>CONG TY BAN HANG</Ten><MST>1400147351</MST><DChi>Dong Thap</DChi></NBan>
+ <NMua><Ten>DOANH NGHIEP TU NHAN KIM TIEN</Ten><MST>1900325771</MST></NMua>
+ <DSHHDVu><HHDVu><THHDVu>Dau Dien</THHDVu></HHDVu></DSHHDVu>
+ <TToan><TgTCThue>100000</TgTCThue><TgTThue>0</TgTThue><TgTToan>100000</TgTToan></TToan></NDHDon></DLHDon></HDon>"""
+ x=extract(xml,"sample.xml")
+ assert x["seller_name"]=="CONG TY BAN HANG"
+ assert x["tax_code"]=="1400147351" and x["buyer_tax_code"]=="1900325771"
+ assert x["buyer_name"]=="DOANH NGHIEP TU NHAN KIM TIEN"
+ assert x["invoice_form"]=="1" and x["invoice_symbol"]=="K26TKD"
+ assert x["invoice_number"]=="16573" and x["invoice_date"]=="2026-10-14"
+ assert x["total_amount"]==100000 and x["item_description"]=="Dau Dien"
