@@ -45,7 +45,7 @@ if errorlevel 1 (
 echo [4/4] Khoi dong backend tai http://127.0.0.1:8000
 echo Giu cua so nay mo trong luc su dung app. Nhan Ctrl+C de dung.
 cd backend
-..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 goto end
 :failed
 echo Co loi cai dat. Kiem tra Python 3.11 va ket noi Internet.
