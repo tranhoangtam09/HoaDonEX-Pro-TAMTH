@@ -36,9 +36,9 @@ def split_symbol(raw):
  return (m.group(1),m.group(2)) if m else (None,raw)
 def parse_invoice_text(text,name,source_type):
  x=blank(name,source_type);t=text.replace("\u00a0"," ")
- sym=field_after(t,[r"Ký hiệu(?: hóa đơn)?"]);invno=field_after(t,[r"Số hóa đơn",r"Số\\s*HĐ"])
+ sym=field_after(t,[r"Ký hiệu(?: hóa đơn)?"]);invno=field_after(t,[r"Số hóa đơn",r"Số\s*HĐ"])
  if not invno:
-  m=re.search(r"(?m)^\\s*Số\\s*[:：]\\s*([^\\n\\r]+)",t,re.I)
+  m=re.search(r"(?m)^\s*Số\s*[:：]\s*([^\n\r]+)",t,re.I)
   if m:invno=clean(m.group(1))
  if not sym:
   m=re.search(r"(?:^|\n)\s*(\d{1,2}[A-Z][A-Z0-9/-]{3,})\s*(?:\n|$)",t)
@@ -64,7 +64,7 @@ def parse_invoice_text(text,name,source_type):
  buyer=t.split("Họ tên người mua hàng",1)[1] if "Họ tên người mua hàng" in t else ""
  x["buyer_name"]=field_after(buyer,[r"Tên đơn vị",r"Người mua hàng"])
  if not x["buyer_name"]:
-  m=re.search(r"(?im)^\\s*Tên đơn vị\\s*[:：]?\\s*\\n\\s*([^\\n\\r]+)",buyer)
+  m=re.search(r"(?im)^\s*Tên đơn vị\s*[:：]?\s*\n\s*([^\n\r]+)",buyer)
   if m:x["buyer_name"]=clean(m.group(1))
  x["buyer_tax_code"]=tax_clean(field_after(buyer,[r"Mã số thuế",r"MST"]) or "")
  x["seller_address"]=field_after(t,[r"Địa chỉ"]);x["buyer_address"]=field_after(buyer,[r"Địa chỉ"])
