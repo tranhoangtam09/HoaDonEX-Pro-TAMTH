@@ -25,6 +25,5 @@ services:
   - type: web
     name: hoa-don-ex-pro-tamth-web
     runtime: static
-    region: singapore
     buildCommand: echo "Static frontend - no build step"
     staticPublishPath: ./frontend
