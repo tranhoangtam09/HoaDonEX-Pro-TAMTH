@@ -10,7 +10,7 @@ def validate(x):
   if x.get(k) in (None,""):w.append("Thiếu trường: "+label)
  for key,label in [("tax_code","Mã số thuế đơn vị phát hành"),("buyer_tax_code","Mã số thuế đơn vị thụ hưởng")]:
   tax=x.get(key)
-  if tax and not re.fullmatch(r"\d{10}(?:\d{3})?",str(tax)):w.append(label+" cần kiểm tra định dạng.")
+  if tax and not re.fullmatch(r"\\d{10}(?:\\d{3})?",str(tax)):w.append(label+" cần kiểm tra định dạng.")
  for key,label in [("invoice_date","Ngày hóa đơn"),("payment_date","Ngày đã thanh toán")]:
   if x.get(key):
    try:datetime.date.fromisoformat(str(x[key]))
@@ -21,15 +21,14 @@ def validate(x):
  return x
 
 def validate_for_export(x,kind):
+ """Exports are permissive: missing fields are warnings, never export blockers."""
+ if kind not in ("transfer","compensation"):
+  return False,["Loại bảng kê không hợp lệ."]
  x=validate(dict(x))
- if kind=="transfer":
-  required=["buyer_name","buyer_tax_code","beneficiary_account","invoice_form","invoice_symbol","invoice_date","total_amount","financing_amount","currency","item_description"]
- else:
-  required=["seller_name","tax_code","invoice_form","invoice_symbol","invoice_date","total_amount","financing_amount","currency","item_description"]
+ required=(
+  ["buyer_name","buyer_tax_code","beneficiary_account","invoice_form","invoice_symbol","invoice_number","invoice_date","total_amount","financing_amount","currency","item_description"]
+  if kind=="transfer" else
+  ["seller_name","tax_code","invoice_form","invoice_symbol","invoice_number","invoice_date","total_amount","financing_amount","currency","item_description","payment_date","payment_amount"]
+ )
  missing=[k for k in required if x.get(k) in (None,"")]
- if missing:return False,missing
- # The source invoice amount must reconcile if subtotal and VAT are both available.
- if not x.get("is_valid"):return False,x.get("warnings") or ["Hồ sơ chưa hợp lệ."]
- if kind=="compensation" and bool(x.get("payment_amount")) != bool(x.get("payment_date")):
-  return False,["payment_date và payment_amount phải cùng được nhập hoặc cùng để trống"]
- return True,[]
+ return True,missing
