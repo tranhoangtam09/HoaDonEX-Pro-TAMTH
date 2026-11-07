@@ -22,3 +22,41 @@ def test_compensation_exact_13_column_mapping_and_no_guessed_payments():
  out=export_workbook([x],"compensation");wb=load_workbook(out);ws=wb["Bảng kê hóa đơn GN bù đắp"]
  assert [ws.cell(3,c).value for c in range(1,14)]==[1,"1234567890","Công ty bán A","1","K26TKD","99","09/10/2026",123000,"VND","Hàng hóa",100000,None,None]
  assert wb.sheetnames==["Bảng kê hóa đơn GN bù đắp","Hướng dẫn nhập liệu"]
+
+def test_transfer_export_allows_missing_fields_and_leaves_cells_blank():
+ if not (ROOT/"Bang_ke_hoa_don_chuyen_khoan_VND.xlsx").exists():pytest.skip("Original workbook template provisioned separately")
+ x=base_item()
+ x["buyer_name"]=None
+ x["buyer_tax_code"]=None
+ x["beneficiary_account"]=None
+ x["invoice_number"]=None
+ x["invoice_date"]=None
+ x["total_amount"]=None
+ x["financing_amount"]=None
+ out=export_workbook([x],"transfer")
+ wb=load_workbook(out);ws=wb["Bảng kê hóa đơn"]
+ assert ws["A3"].value==1
+ assert ws["B3"].value is None
+ assert ws["C3"].value is None
+ assert ws["D3"].value is None
+ assert ws["G3"].value is None
+ assert ws["H3"].value is None
+ assert ws["I3"].value is None
+ assert ws["L3"].value is None
+
+def test_compensation_export_allows_missing_payment_and_invoice_fields():
+ if not (ROOT/"Bang_ke_hoa_don_bu_dap_VND.xlsx").exists():pytest.skip("Original workbook template provisioned separately")
+ x=base_item()
+ x["seller_name"]=None
+ x["tax_code"]=None
+ x["invoice_number"]=None
+ x["invoice_date"]=None
+ x["total_amount"]=None
+ x["financing_amount"]=None
+ x["payment_date"]=None
+ x["payment_amount"]=None
+ out=export_workbook([x],"compensation")
+ wb=load_workbook(out);ws=wb["Bảng kê hóa đơn GN bù đắp"]
+ assert ws["A3"].value==1
+ for cell in ("B3","C3","F3","G3","H3","K3","L3","M3"):
+  assert ws[cell].value is None
