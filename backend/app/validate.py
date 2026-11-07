@@ -1,22 +1,33 @@
 import re,datetime
+
 def validate(x):
  w=list(x.get("warnings") or [])
- if x.get("user_reviewed"):w=[m for m in w if "OCR" not in m and "Chưa cài OCR" not in m]
+ if x.get("user_reviewed"):
+  w=[m for m in w if "OCR" not in m and "Chưa cài OCR" not in m]
  for k,label in [("seller_name","Tên đơn vị phát hành"),("tax_code","Mã số thuế"),("invoice_form","Ký hiệu mẫu số"),("invoice_symbol","Ký hiệu hóa đơn"),("invoice_number","Số hóa đơn"),("invoice_date","Ngày hóa đơn"),("total_amount","Số tiền hóa đơn")]:
   if x.get(k) in (None,""):w.append("Thiếu trường: "+label)
- tax=x.get("tax_code")
- if tax and not re.fullmatch(r"\d{10}(?:\d{3})?",str(tax)):w.append("Mã số thuế cần kiểm tra định dạng.")
- if x.get("invoice_date"):
-  try:datetime.date.fromisoformat(x["invoice_date"])
-  except Exception:w.append("Ngày hóa đơn không hợp lệ.")
+ for key,label in [("tax_code","Mã số thuế đơn vị phát hành"),("buyer_tax_code","Mã số thuế đơn vị thụ hưởng")]:
+  tax=x.get(key)
+  if tax and not re.fullmatch(r"\d{10}(?:\d{3})?",str(tax)):w.append(label+" cần kiểm tra định dạng.")
+ for key,label in [("invoice_date","Ngày hóa đơn"),("payment_date","Ngày đã thanh toán")]:
+  if x.get(key):
+   try:datetime.date.fromisoformat(str(x[key]))
+   except Exception:w.append(label+" không hợp lệ.")
  a,b,t=x.get("subtotal"),x.get("vat_amount"),x.get("total_amount")
  if None not in (a,b,t) and abs(float(a)+float(b)-float(t))>1:w.append("Tổng tiền không khớp tiền hàng + thuế.")
- x["warnings"]=list(dict.fromkeys(w));x["is_valid"]=not x["warnings"];return x
+ x["warnings"]=list(dict.fromkeys(w));x["is_valid"]=not x["warnings"]
+ return x
+
 def validate_for_export(x,kind):
- x=validate(dict(x));required=["seller_name","tax_code","invoice_form","invoice_symbol","invoice_date","total_amount","financing_amount","currency","item_description"]
- if kind=="transfer":required+=["beneficiary_account"]
+ x=validate(dict(x))
+ if kind=="transfer":
+  required=["buyer_name","buyer_tax_code","beneficiary_account","invoice_form","invoice_symbol","invoice_date","total_amount","financing_amount","currency","item_description"]
+ else:
+  required=["seller_name","tax_code","invoice_form","invoice_symbol","invoice_date","total_amount","financing_amount","currency","item_description"]
  missing=[k for k in required if x.get(k) in (None,"")]
  if missing:return False,missing
+ # The source invoice amount must reconcile if subtotal and VAT are both available.
  if not x.get("is_valid"):return False,x.get("warnings") or ["Hồ sơ chưa hợp lệ."]
- if kind=="compensation" and x.get("payment_amount") not in (None,"") and not x.get("payment_date"):return False,["payment_date"]
+ if kind=="compensation" and bool(x.get("payment_amount")) != bool(x.get("payment_date")):
+  return False,["payment_date và payment_amount phải cùng được nhập hoặc cùng để trống"]
  return True,[]
