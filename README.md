@@ -34,8 +34,8 @@ Backend xác thực sheet, hàng tiêu đề và số cột trước khi lưu v�
 Các cột số tiền nhận nợ, tài khoản thụ hưởng, ngày thanh toán và số tiền đã thanh toán không được tự suy ra từ tổng tiền hóa đơn. Người dùng phải nhập đúng theo hồ sơ tín dụng/chứng từ thanh toán. Bản xuất giữ nguyên workbook, sheet hướng dẫn, định dạng và cấu trúc mẫu.
 
 ## Triển khai trực tuyến
-- Backend: Render Blueprint từ render.yaml; dịch vụ cần ổ đĩa bền vững để giữ SQLite và hai mẫu Excel.
-- Frontend: GitHub Pages qua workflow .github/workflows/pages.yml.
+- Render Blueprint từ render.yaml triển khai đồng thời backend FastAPI và frontend tĩnh.
+- Backend có ổ đĩa bền vững để giữ SQLite và hai mẫu Excel.
 - API_KEY được Render tạo tự động; nhập key vào phần Cấu hình API của frontend. Không đưa key vào mã nguồn.
 
 Lần đầu chạy OCR có thể tải mô hình nhận dạng nên cần thời gian và bộ nhớ. Cần kiểm thử tải thực tế trước khi dùng quy trình nghiệp vụ thường xuyên.
