@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: hoa-don-ex-pro-tamth-api
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    disk:
+      name: hdx-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: API_KEY
+        generateValue: true
+      - key: DATABASE_PATH
+        value: /var/data/invoices.sqlite3
+      - key: TEMPLATES_DIR
+        value: /var/data/templates
+      - key: MAX_UPLOAD_MB
+        value: "20"
+      - key: CORS_ORIGINS
+        value: https://tranhoangtam09.github.io
