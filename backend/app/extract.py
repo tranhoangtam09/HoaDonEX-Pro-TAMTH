@@ -125,7 +125,7 @@ def extract(data,name):
   return x
  if ext==".pdf":
   doc=fitz.open(stream=data,filetype="pdf");text="\n".join(p.get_text("text") for p in doc);doc.close()
-  x=parse_invoice_text(text,name,"pdf_text");critical=("seller_name","tax_code","invoice_form","invoice_symbol","invoice_number","invoice_date","total_amount")
+  x=parse_invoice_text(text,name,"pdf_text");critical=("seller_name","tax_code","buyer_name","buyer_tax_code","invoice_form","invoice_symbol","invoice_number","invoice_date","total_amount")
   if len(re.sub(r"\s","",text))<80 or any(not x.get(k) for k in critical):
    try:
     ot=pdf_to_text(data);ox=parse_invoice_text(ot,name,"paddleocr_vi")
