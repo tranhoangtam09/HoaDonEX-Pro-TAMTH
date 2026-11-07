@@ -11,9 +11,9 @@ Provision these two original Excel files through the frontend panel "Nạp hai m
 
 The backend validates the sheet name, header row 2 and column count, then stores the workbook on the persistent disk.
 
-Transfer mapping A:L: STT, beneficiary tax ID, beneficiary name, beneficiary account, invoice form, invoice symbol, invoice number/order reference, invoice date, invoice amount, currency, item/purpose, financing amount.
+Transfer mapping A:L: STT, buyer/beneficiary tax ID, buyer/beneficiary name, beneficiary account, invoice form, invoice symbol, invoice number/order reference, invoice date, invoice amount, currency, item/purpose, financing amount.
 
-Compensation mapping A:M: STT, issuer tax ID, issuer name, invoice form, invoice symbol, invoice number/order reference, invoice date, invoice amount, currency, item/purpose, financing amount, payment date, payment amount.
+Compensation mapping A:M: STT, seller/issuer tax ID, seller/issuer name, invoice form, invoice symbol, invoice number/order reference, invoice date, invoice amount, currency, item/purpose, financing amount, payment date, payment amount.
 
 The financing amount, beneficiary bank account and payment details are never inferred from invoice total. They are entered and reviewed manually. Export retains the original workbook, instructions sheet and formatting.
 
