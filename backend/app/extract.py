@@ -87,17 +87,17 @@ def _amount_near_label(blocks,labels,allow_zero=False):
  for y,x0,y1,txt in blocks:
   low=txt.lower()
   if any(label in low for label in labels):
-   vals=re.findall(r"(?<!\\d)(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?!\\d)",txt)
-   vals=[v for v in vals if len(re.sub(r"\\D","",v))>=4]
+   vals=re.findall(r"(?<![0-9])([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]+)(?![0-9])",txt)
+   vals=[v for v in vals if len(re.sub("[^0-9]","",v))>=4]
    if vals:return number(vals[0])
-   if allow_zero and re.search(r"\\b(?:kct|không chịu thuế)\\b",low) and re.search(r"\\b0\\b",txt):
+   if allow_zero and ("kct" in low or "không chịu thuế" in low) and re.search("(^|[^0-9])0([^0-9]|$)",txt):
     return 0
    near=[(abs(by-y),btxt) for by,bx,by1,btxt in blocks if abs(by-y)<=5 and btxt!=txt]
    for _,other in sorted(near):
-    vals=re.findall(r"(?<!\\d)(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?!\\d)",other)
-    vals=[v for v in vals if len(re.sub(r"\\D","",v))>=4]
+    vals=re.findall(r"(?<![0-9])([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]+)(?![0-9])",other)
+    vals=[v for v in vals if len(re.sub("[^0-9]","",v))>=4]
     if vals:return number(vals[0])
-    if allow_zero and re.search(r"\\b0\\b",other):return 0
+    if allow_zero and re.search("(^|[^0-9])0([^0-9]|$)",other):return 0
  return None
 def _parse_pdf_layout(data,x):
  try:
@@ -132,7 +132,7 @@ def _parse_pdf_layout(data,x):
 
   # Date may be laid out as separate text fragments or as one combined line.
   date_text=" ".join(txt for y,x0,y1,txt in first_page_blocks if 150<=y<=310)
-  dm=re.search(r"([0-9]{1,2})\\s+tháng\\s+([0-9]{1,2})\\s+(?:năm\\s*)?([0-9]{4})",date_text,re.I)
+  dm=re.search(r"([0-9]{1,2})[ ]+tháng[ ]+([0-9]{1,2})[ ]+(?:năm[ ]*)?([0-9]{4})",date_text,re.I)
   if dm:
    try:x["invoice_date"]=datetime.date(int(dm.group(3)),int(dm.group(2)),int(dm.group(1))).isoformat()
    except ValueError:pass
