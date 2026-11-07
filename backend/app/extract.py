@@ -102,73 +102,104 @@ def _amount_near_label(blocks,labels,allow_zero=False):
 def _parse_pdf_layout(data,x):
  try:
   doc=fitz.open(stream=data,filetype="pdf")
-  if not doc:return x
-  page_blocks=[]
-  for page_index,page in enumerate(doc):
-   # Keep coordinates ordered across pages while retaining each page's original layout.
-   page_blocks.extend(_pdf_blocks(page))
-  # Header/party fields are on page one; totals and item rows may be on later pages.
+  if len(doc)==0:return x
   first_page_blocks=_pdf_blocks(doc[0])
-  blocks=page_blocks
-  header=[b[3] for b in first_page_blocks if re.search(r"ký hiệu|\\(sign\\)|\\bSố\\b|\\(no\\)",b[3],re.I)]
-  header_text="\\n".join(header+[b[3] for b in first_page_blocks if re.search(r"\\b\\d{1,2}[A-Z][A-Z0-9/-]{2,}\\b|\\b\\d{5,}\\b",b[3]) and 160<=b[0]<=310])
-  sm=re.search(r"\\b(\\d{1,2}[A-Z][A-Z0-9/-]{2,})\\b",header_text,re.I)
-  nm=re.search(r"(?<!\\d)(\\d{5,})(?!\\d)",header_text)
-  if sm:x["invoice_form"],x["invoice_symbol"]=split_symbol(sm.group(1))
-  if nm:x["invoice_number"]=nm.group(1)
-  # MeInvoice may place "Ngày/năm" in separate text blocks.
-  date_text=" ".join(b[3] for b in first_page_blocks if 150<=b[0]<=310)
-  dm=re.search(r"(\\d{1,2})\\s+tháng\\s+(\\d{1,2})\\s+(?:năm\\s*)?(\\d{4})",date_text,re.I)
+  blocks=[]
+  for page in doc:
+   blocks.extend(_pdf_blocks(page))
+
+  # Invoice symbol and number must come from the invoice header band, never from issuer tax IDs or footer software IDs.
+  symbol_hit=None
+  for y,x0,y1,txt in first_page_blocks:
+   if 150<=y<=310:
+    m=re.search(r"([0-9]{1,2}[A-Z][A-Z0-9/-]{2,})",txt,re.I)
+    if m and ("ký hiệu" in txt.lower() or "sign" in txt.lower() or 160<=y<=260):
+     symbol_hit=m.group(1)
+     x["invoice_form"],x["invoice_symbol"]=split_symbol(symbol_hit)
+     # Some layouts put symbol and invoice number in the same PDF text block.
+     tail=txt[m.end():]
+     nums=re.findall(r"(?<![0-9])[0-9]{5,}(?![0-9])",tail)
+     if nums:x["invoice_number"]=nums[0]
+     break
+  if not x.get("invoice_number"):
+   for y,x0,y1,txt in first_page_blocks:
+    low=txt.lower()
+    if 150<=y<=310 and ("(no)" in low or re.search(r"số\\s*[:：]",txt,re.I)):
+     nums=re.findall(r"(?<![0-9])[0-9]{5,}(?![0-9])",txt)
+     if nums:
+      x["invoice_number"]=nums[0]
+      break
+
+  # Date may be laid out as separate text fragments or as one combined line.
+  date_text=" ".join(txt for y,x0,y1,txt in first_page_blocks if 150<=y<=310)
+  dm=re.search(r"([0-9]{1,2})\\s+tháng\\s+([0-9]{1,2})\\s+(?:năm\\s*)?([0-9]{4})",date_text,re.I)
   if dm:
    try:x["invoice_date"]=datetime.date(int(dm.group(3)),int(dm.group(2)),int(dm.group(1))).isoformat()
    except ValueError:pass
-  # Buyer company and tax code often appear immediately BEFORE their labels in MeInvoice text layers.
-  for by,bx,by1,bt in first_page_blocks:
-   if re.search(r"tên đơn vị",bt,re.I):
-    before=re.split(r"tên đơn vị",bt,flags=re.I,maxsplit=1)[0]
-    candidate=clean(before)
+
+  # Buyer company name appears before the 'Tên đơn vị / Company's name' label on common MeInvoice layouts.
+  for y,x0,y1,txt in first_page_blocks:
+   low=txt.lower()
+   label_pos=low.find("tên đơn vị")
+   if label_pos<0:label_pos=low.find("company's name")
+   if label_pos>=0:
+    candidate=clean(txt[:label_pos])
     if candidate and len(candidate)>5 and not re.search(r"họ tên|buyer|payment|chuyển khoản",candidate,re.I):
      x["buyer_name"]=candidate
-   if re.search(r"mã số thuế|tax code",bt,re.I) and by>240:
-    mt=re.search(r"(?<!\\d)(\\d{10}(?:-\\d{3})?)(?!\\d)",bt)
-    if mt:x["buyer_tax_code"]=tax_clean(mt.group(1))
-  seller_idx=next((i for i,b in enumerate(first_page_blocks) if re.search(r"đơn vị bán hàng",b[3],re.I)),None)
+   if 240<=y<=410 and ("mã số thuế" in low or "tax code" in low):
+    tax_match=re.search(r"(?<![0-9])([0-9]{10}(?:-[0-9]{3})?)(?![0-9])",txt)
+    if tax_match:x["buyer_tax_code"]=tax_clean(tax_match.group(1))
+
+  # Explicit seller/branch label overrides the parent-company masthead.
+  seller_idx=next((i for i,b in enumerate(first_page_blocks) if "đơn vị bán hàng" in b[3].lower()),None)
   if seller_idx is not None:
-   label_block=first_page_blocks[seller_idx][3]
-   tail=re.split(r"đơn vị bán hàng\\s*[:：]?",label_block,flags=re.I,maxsplit=1)
-   parts=[clean(tail[-1])] if tail and clean(tail[-1]) else []
    base_y=first_page_blocks[seller_idx][0]
+   label_block=first_page_blocks[seller_idx][3]
+   low=label_block.lower()
+   pos=low.find("đơn vị bán hàng")
+   remainder=label_block[pos+len("đơn vị bán hàng"):].lstrip(" :：")
+   parts=[clean(remainder)] if clean(remainder) else []
    for by,bx,by1,bt in first_page_blocks[seller_idx+1:]:
-    if by-base_y>48:break
-    if re.search(r"mã số thuế|địa chỉ|số tài khoản|hóa đơn giá trị|mã cqt",bt,re.I):break
-    if re.fullmatch(r"[A-ZÀ-Ỹ0-9 .,&/-]{2,}",bt,re.I):parts.append(bt)
+    if by-base_y>32:break
+    if any(token in bt.lower() for token in ("mã số thuế","tax code","địa chỉ","address","số tài khoản","bank account","hóa đơn giá trị","mã cqt")):break
+    if bt and not re.search(r"[0-9]{5,}",bt) and bt.upper()==bt:
+     parts.append(bt)
    seller=clean(" ".join(p for p in parts if p))
    if seller:x["seller_name"]=seller
-   for by,bx,by1,bt in blocks[seller_idx+1:]:
-    if by-base_y>65:break
-    if re.search(r"mã số thuế|tax code",bt,re.I):
-     mt=re.search(r"(?<!\\d)(\\d{10}(?:-\\d{3})?)(?!\\d)",bt)
-     if mt:x["tax_code"]=tax_clean(mt.group(1));break
+   for by,bx,by1,bt in first_page_blocks[seller_idx+1:]:
+    if by-base_y>70:break
+    tax_match=re.search(r"(?<![0-9])([0-9]{10}(?:-[0-9]{3})?)(?![0-9])",bt)
+    if tax_match:
+     x["tax_code"]=tax_clean(tax_match.group(1))
+     break
   else:
-   for _,_,_,bt in first_page_blocks[:8]:
-    if re.search(r"^(?:CÔNG TY|DOANH NGHIỆP|HỘ KINH DOANH)",bt,re.I):
-     x["seller_name"]=bt;break
-   for _,_,_,bt in first_page_blocks[:12]:
-    mt=re.search(r"(?<!\\d)(\\d{10}(?:-\\d{3})?)(?!\\d)",bt)
-    if mt:x["tax_code"]=tax_clean(mt.group(1));break
+   for _,_,_,txt in first_page_blocks[:10]:
+    if re.search(r"^(?:CÔNG TY|DOANH NGHIỆP|HỘ KINH DOANH)",txt,re.I):
+     x["seller_name"]=clean(txt)
+     break
+   for _,_,_,txt in first_page_blocks[:12]:
+    tax_match=re.search(r"(?<![0-9])([0-9]{10}(?:-[0-9]{3})?)(?![0-9])",txt)
+    if tax_match:
+     x["tax_code"]=tax_clean(tax_match.group(1))
+     break
+
   for labels,key in [(["tổng tiền thanh toán","total amount"],"total_amount"),(["cộng tiền hàng","total before vat"],"subtotal"),(["tiền thuế gtgt","vat amount"],"vat_amount")]:
    value=_amount_near_label(blocks,labels,allow_zero=(key=="vat_amount"))
    if value is not None:x[key]=value
-  start=next((i for i,b in enumerate(blocks) if "tên hàng hóa" in b[3].lower() or "name of goods" in b[3].lower()),None)
-  if start is not None:
+
+  # Read item rows from all pages, stopping at the first totals section.
+  start_row=next((i for i,b in enumerate(blocks) if "tên hàng hóa" in b[3].lower() or "name of goods" in b[3].lower()),None)
+  if start_row is not None:
    goods=[]
-   for by,bx,by1,bt in blocks[start+1:]:
+   for by,bx,by1,bt in blocks[start_row+1:]:
     if re.search(r"cộng tiền hàng|total before vat|thuế suất|vat rate",bt,re.I):break
-    if re.search(r"\\b\\d{1,3}(?:[.,]\\d{3})+\\b",bt) and not re.search(r"tên hàng|đơn vị tính|số lượng|đơn giá|thành tiền|^a$|^b$|^c$",bt,re.I):goods.append(bt)
+    if re.search(r"[0-9]{1,3}(?:[.,][0-9]{3})+",bt) and not re.search(r"tên hàng|đơn vị tính|số lượng|đơn giá|thành tiền|^a$|^b$|^c$",bt,re.I):
+     goods.append(bt)
    if goods:x["item_description"]="; ".join(goods)[:500]
   doc.close()
- except Exception:
-  return x
+ except Exception as exc:
+  # Keep base text extraction; caller will show missing fields for manual review.
+  x.setdefault("warnings",[]).append("Phân tích bố cục PDF không hoàn tất: "+str(exc))
  return x
 
 def extract(data,name):
