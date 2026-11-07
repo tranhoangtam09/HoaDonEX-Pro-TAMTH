@@ -1,19 +1,18 @@
 from pathlib import Path
 from app.extract import parse_invoice_text,extract
-SAMPLE="""1K26TKD
-16573
-Ký hiệu:
-Số:
-CÔNG TY CỔ PHẦN THƯƠNG MẠI
+SAMPLE="""CÔNG TY CỔ PHẦN THƯƠNG MẠI
 DẦU KHÍ ĐỒNG THÁP
 Địa chỉ: Số 472 Nguyễn Huệ, phường Mỹ Trà, tỉnh Đồng Tháp, Việt Nam
 MST:1400147351
 HÓA ĐƠN
 Ngày 14 tháng 10 năm 2026
-Đơn vị bán hàng:
+Ký hiệu: 1K26TKD
+Số: 16573
+Đơn vị bán hàng: CÔNG TY CỔ PHẦN THƯƠNG MẠI DẦU KHÍ ĐỒNG THÁP
 Họ tên người mua hàng:
 Tên đơn vị:
 DOANH NGHIỆP TƯ NHÂN KIM TIẾN
+Địa chỉ: Số 326, ấp Ngọc Điền, xã Gành Hào, tỉnh Cà Mau, Việt Nam
 Mã số thuế: 1 9 0 0 3 2 5 7 7 1
 TÊN HÀNG HÓA, DỊCH VỤ
 STT
@@ -28,6 +27,8 @@ def test_realistic_invoice_text():
  assert x["tax_code"]=="1400147351" and x["invoice_number"]=="16573"
  assert x["invoice_date"]=="2026-10-14" and x["total_amount"]==165720000
  assert x["invoice_form"]=="1" and x["invoice_symbol"]=="K26TKD" and x["order_reference"]=="83/2026"
+ assert x["buyer_name"]=="DOANH NGHIỆP TƯ NHÂN KIM TIẾN"
+ assert x["buyer_tax_code"]=="1900325771"
 def test_actual_pdf_regression_set_if_present():
  fixtures=Path(__file__).resolve().parents[2]/"fixtures"
  expected={"2026100916460.pdf":("16460","2026-10-09",169320000),"2026101416573(1).pdf":("16573","2026-10-14",165720000),"2026101616689.pdf":("16689","2026-10-16",154320000)}
@@ -36,3 +37,4 @@ def test_actual_pdf_regression_set_if_present():
   if not p.exists():continue
   x=extract(p.read_bytes(),name)
   assert x["tax_code"]=="1400147351" and x["invoice_number"]==num and x["invoice_date"]==day and x["total_amount"]==total
+  assert x["buyer_name"]=="DOANH NGHIỆP TƯ NHÂN KIM TIẾN" and x["buyer_tax_code"]=="1900325771"
