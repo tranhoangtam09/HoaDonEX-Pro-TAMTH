@@ -27,6 +27,30 @@ def save(name,sha,kind,payload):
   if cur.rowcount:c.execute("INSERT INTO audit(invoice_id,action,detail) VALUES(?,?,?)",(r["id"],"created","Uploaded source file"))
   return r["id"],bool(cur.rowcount)
 
+def clear_all():
+ with conn() as c:
+  c.execute("DELETE FROM audit")
+  c.execute("DELETE FROM invoices")
+
+def delete_one(i):
+ with conn() as c:
+  c.execute("DELETE FROM audit WHERE invoice_id=?",(i,))
+  cur=c.execute("DELETE FROM invoices WHERE id=?",(i,))
+  return cur.rowcount>0
+
+def delete_unrecognized():
+ with conn() as c:
+  rows=c.execute("SELECT id,payload FROM invoices").fetchall()
+  ids=[]
+  for r in rows:
+   p=json.loads(r["payload"])
+   if not p.get("seller_name") or not p.get("invoice_number") or not p.get("invoice_date"):
+    ids.append(r["id"])
+  if ids:
+   c.executemany("DELETE FROM audit WHERE invoice_id=?",[(i,) for i in ids])
+   c.executemany("DELETE FROM invoices WHERE id=?",[(i,) for i in ids])
+  return len(ids)
+
 def all():
  with conn() as c:rows=c.execute("SELECT * FROM invoices ORDER BY id DESC").fetchall()
  return [_record(r) for r in rows]
