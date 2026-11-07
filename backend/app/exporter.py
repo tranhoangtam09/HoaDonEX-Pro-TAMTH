@@ -39,7 +39,7 @@ def export_workbook(items,kind):
   r=first_data_row+i
   if r>style_row:_copy_row_style(ws,style_row,r)
   if kind=="transfer":
-   values=[i+1,x.get("tax_code"),x.get("seller_name"),x.get("beneficiary_account"),x.get("invoice_form"),x.get("invoice_symbol"),x.get("invoice_number") or x.get("order_reference"),_date_text(x.get("invoice_date")),x.get("total_amount"),x.get("currency"),x.get("item_description"),x.get("financing_amount")]
+   values=[i+1,x.get("buyer_tax_code"),x.get("buyer_name"),x.get("beneficiary_account"),x.get("invoice_form"),x.get("invoice_symbol"),x.get("invoice_number") or x.get("order_reference"),_date_text(x.get("invoice_date")),x.get("total_amount"),x.get("currency"),x.get("item_description"),x.get("financing_amount")]
   else:
    values=[i+1,x.get("tax_code"),x.get("seller_name"),x.get("invoice_form"),x.get("invoice_symbol"),x.get("invoice_number") or x.get("order_reference"),_date_text(x.get("invoice_date")),x.get("total_amount"),x.get("currency"),x.get("item_description"),x.get("financing_amount"),_date_text(x.get("payment_date")),x.get("payment_amount")]
   for col,value in enumerate(values,1):ws.cell(r,col).value=value
