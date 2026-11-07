@@ -48,7 +48,19 @@ class DesktopApp:
         self.status.pack(pady=8)
         tk.Button(self.root, text="Mở ứng dụng", width=22, command=self.open_app).pack(pady=6)
         tk.Label(self.root, text="Dữ liệu lưu cục bộ trên máy tính này.\nĐóng cửa sổ này để dừng ứng dụng.", font=("Segoe UI", 9), fg="#555").pack(pady=8)
-        self.server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=8000, log_level="warning"))
+                # PyInstaller --windowed may leave sys.stdout/sys.stderr as None.
+        # Disable Uvicorn's default logging config to avoid formatter.isatty() crash.
+        self.server = uvicorn.Server(
+            uvicorn.Config(
+                app,
+                host="127.0.0.1",
+                port=8000,
+                log_level="warning",
+                log_config=None,
+                access_log=False,
+                use_colors=False,
+            )
+        )
         self.thread = threading.Thread(target=self.run_server, daemon=True)
         self.thread.start()
         self.root.after(1400, self.open_app)
