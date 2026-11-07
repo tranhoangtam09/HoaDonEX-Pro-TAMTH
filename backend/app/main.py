@@ -17,7 +17,7 @@ app.add_middleware(CORSMiddleware,allow_origins=CORS_ORIGINS,allow_methods=["GET
 ALLOWED={".pdf",".xml",".jpg",".jpeg",".png",".tif",".tiff",".webp"}
 @app.middleware("http")
 async def require_api_key(request,call_next):
- if API_KEY and request.url.path not in ("/health","/docs","/openapi.json","/redoc"):
+ if API_KEY and request.method != "OPTIONS" and request.url.path not in ("/health","/docs","/openapi.json","/redoc"):
   supplied=request.headers.get("X-API-Key","")
   if not hmac.compare_digest(supplied,API_KEY):
    from fastapi.responses import JSONResponse
