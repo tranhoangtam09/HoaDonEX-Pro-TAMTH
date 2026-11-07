@@ -1,18 +1,34 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+
+set "PYTHON_CMD="
 where py >nul 2>nul
-if errorlevel 1 (
-  echo Khong tim thay Python. Cai Python 3.11 va chon Add Python to PATH.
+if not errorlevel 1 set "PYTHON_CMD=py -3.11"
+if not defined PYTHON_CMD (
+  where python >nul 2>nul
+  if not errorlevel 1 set "PYTHON_CMD=python"
+)
+if not defined PYTHON_CMD (
+  echo Khong tim thay Python trong PATH.
+  echo Hay mo lai bo cai Python 3.11, chon Modify va bat Python Launcher va Add Python to PATH.
+  echo Hoac cai lai Python 3.11 tu python.org.
   pause
   exit /b 1
 )
+%PYTHON_CMD% -c "import sys; print(sys.version); assert sys.version_info[:2] == (3,11), 'Can Python 3.11'"
+if errorlevel 1 (
+  echo Tim thay Python nhung phien ban khong phai 3.11.
+  pause
+  exit /b 1
+)
+
 if not exist "backend\.venv\Scripts\python.exe" (
   echo [1/4] Tao moi truong Python...
-  py -3.11 -m venv backend\.venv
+  %PYTHON_CMD% -m venv backend\.venv
   if errorlevel 1 goto failed
 )
-echo [2/4] Cap nhat pip va cai thu vien co ban...
+echo [2/4] Cai thu vien co ban...
 backend\.venv\Scripts\python.exe -m pip install --upgrade pip
 backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
 if errorlevel 1 goto failed
