@@ -20,4 +20,8 @@ services:
       - key: MAX_UPLOAD_MB
         value: "20"
       - key: CORS_ORIGINS
-        value: https://tranhoangtam09.github.io
+        value: https://hoa-don-ex-pro-tamth-web.onrender.com,https://tranhoangtam09.github.io
+  - type: static
+    name: hoa-don-ex-pro-tamth-web
+    buildCommand: echo "Static frontend - no build step"
+    staticPublishPath: ./frontend
