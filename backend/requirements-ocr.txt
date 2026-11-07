@@ -1,1 +1,4 @@
--r requirements.txt\npaddleocr>=2.7\npaddlepaddle>=2.6\n
+-r requirements.txt
+paddleocr>=2.7,<3
+paddlepaddle>=2.6,<3
+numpy<2
