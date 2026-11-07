@@ -3,7 +3,9 @@ import re,datetime
 def validate(x):
  w=list(x.get("warnings") or [])
  if x.get("user_reviewed"):
-  w=[m for m in w if "OCR" not in m and "Chưa cài OCR" not in m]
+  # Recompute extraction/validation warnings after the operator has corrected fields.
+  stale=("OCR","Chưa cài OCR","Chưa tách được ký hiệu","Thiếu trường:","cần kiểm tra định dạng","không hợp lệ","Tổng tiền không khớp")
+  w=[m for m in w if not any(token.lower() in m.lower() for token in stale)]
  for k,label in [("seller_name","Tên đơn vị phát hành"),("tax_code","Mã số thuế"),("invoice_form","Ký hiệu mẫu số"),("invoice_symbol","Ký hiệu hóa đơn"),("invoice_number","Số hóa đơn"),("invoice_date","Ngày hóa đơn"),("total_amount","Số tiền hóa đơn")]:
   if x.get(k) in (None,""):w.append("Thiếu trường: "+label)
  for key,label in [("tax_code","Mã số thuế đơn vị phát hành"),("buyer_tax_code","Mã số thuế đơn vị thụ hưởng")]:
