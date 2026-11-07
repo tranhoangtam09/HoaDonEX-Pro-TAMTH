@@ -1,0 +1,1 @@
+-r requirements.txt\npaddleocr>=2.7\npaddlepaddle>=2.6\n
