@@ -88,7 +88,7 @@ async def upload_template(kind:str,file:UploadFile=File(...)):
   if sheet_name not in wb.sheetnames:raise HTTPException(422,"Không đúng tên sheet của mẫu gốc: "+sheet_name)
   ws=wb[sheet_name]
   if ws.max_column!=columns or str(ws["A2"].value or "").strip()!="STT":raise HTTPException(422,"Cấu trúc mẫu Excel không đúng số cột hoặc tiêu đề dòng 2.")
-  headers=[" ".join(str(ws.cell(2,c).value or "").lower().replace("\\n"," ").split()) for c in range(1,columns+1)]
+  headers=[" ".join(str(ws.cell(2,c).value or "").lower().replace(chr(10)," ").split()) for c in range(1,columns+1)]
   required_headers={
    "transfer":["mã số thuế đơn vị thụ hưởng","tên đơn vị thụ hưởng","số tài khoản thụ hưởng","ký hiệu mẫu số","ký hiệu hóa đơn","ngày hóa đơn","số tiền nhận nợ"],
    "compensation":["mã số thuế đơn vị phát hành","tên đơn vị phát hành","ký hiệu mẫu số","ký hiệu hóa đơn","ngày hóa đơn","số tiền nhận nợ","ngày đã thanh toán","số tiền đã thanh toán"]
