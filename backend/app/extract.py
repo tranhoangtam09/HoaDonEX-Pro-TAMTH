@@ -81,16 +81,44 @@ def extract(data,name):
  ext=Path(name).suffix.lower()
  if ext==".xml":
   import xml.etree.ElementTree as ET
-  root=ET.fromstring(data);vals={}
-  for e in root.iter():
-   k=unicodedata.normalize("NFD",e.tag.split("}")[-1].lower()).encode("ascii","ignore").decode();v=clean(e.text)
-   if v:vals.setdefault(k,v)
-  def pick(*keys):
-   for key in keys:
-    for k,v in vals.items():
-     if key in k:return v
-  x=parse_invoice_text("\n".join(f"{k}: {v}" for k,v in vals.items()),name,"xml")
-  x.update(seller_name=pick("tendonvi","tennguoiban","sellername") or x["seller_name"],tax_code=tax_clean(pick("masothue","taxcode","mst") or "") or x["tax_code"],invoice_number=pick("sohoadon","invoiceno") or x["invoice_number"])
+  root=ET.fromstring(data)
+  def tag(e):return re.sub(r"[^a-z0-9]","",unicodedata.normalize("NFD",e.tag.split("}")[-1].lower()).encode("ascii","ignore").decode())
+  def section(*names):
+   targets=set(names)
+   return next((e for e in root.iter() if tag(e) in targets),None)
+  def val(node,*names):
+   if node is None:return None
+   targets=set(names)
+   for e in node.iter():
+    if e is not node and tag(e) in targets:
+     v=clean(e.text)
+     if v:return v
+   return None
+  common=section("ttchung","thongtinchung")
+  seller=section("nban","nguoiban","seller")
+  buyer=section("nmua","nguoimua","buyer")
+  totals=section("ttoan","thanhtoan","payment")
+  goods=section("dshhdvu","danhsachhanghoadichvu","items")
+  x=blank(name,"xml")
+  x.update(
+   seller_name=val(seller,"ten","tendonvi","tennguoiban","sellername"),
+   tax_code=tax_clean(val(seller,"mst","masothue","taxcode") or ""),
+   seller_address=val(seller,"dchi","diachi","address"),
+   buyer_name=val(buyer,"ten","tendonvi","tennguoimua","buyername"),
+   buyer_tax_code=tax_clean(val(buyer,"mst","masothue","taxcode") or ""),
+   buyer_address=val(buyer,"dchi","diachi","address"),
+   invoice_form=val(common,"khmshdon","mauso","invoiceform"),
+   invoice_symbol=val(common,"khhdon","kyhieu","invoicesymbol"),
+   invoice_number=val(common,"shdon","sohoadon","invoiceno"),
+   invoice_date=parse_date(val(common,"nlap","ngaylap","invoicedate") or ""),
+   currency=val(common,"dvtte","loaitien","currency") or "VND",
+   total_amount=number(val(totals,"tgtttoan","tongcongthanhtoan","totalamount")),
+   subtotal=number(val(totals,"tgtcthue","tienhangtruoc thue","subtotal")),
+   vat_amount=number(val(totals,"tgttthue","tienthue","vatamount")),
+   item_description=val(goods,"thhdvu","tenhanghoa","itemname")
+  )
+  if not x["seller_name"] or not x["tax_code"]:x["warnings"].append("XML không có đủ thông tin đơn vị phát hành; cần kiểm tra cấu trúc nhà cung cấp.")
+  if not x["invoice_number"] or not x["invoice_date"]:x["warnings"].append("XML không có đủ số/ngày hóa đơn.")
   return x
  if ext==".pdf":
   doc=fitz.open(stream=data,filetype="pdf");text="\n".join(p.get_text("text") for p in doc);doc.close()
