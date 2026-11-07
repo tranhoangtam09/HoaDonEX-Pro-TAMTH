@@ -67,3 +67,18 @@ def update(i,p):
   c.execute("UPDATE invoices SET payload=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",(json.dumps(x,ensure_ascii=False),i))
   c.execute("INSERT INTO audit(invoice_id,action,detail) VALUES(?,?,?)",(i,"edited","User reviewed invoice fields"))
  return True
+
+def replace_batch(records):
+ """Atomically replace the complete invoice list with one successfully parsed batch."""
+ with conn() as c:
+  c.execute("DELETE FROM audit")
+  c.execute("DELETE FROM invoices")
+  c.execute("DELETE FROM sqlite_sequence WHERE name='invoices'")
+  created=[]
+  for name,sha,kind,payload in records:
+   p=dict(payload);p.pop("id",None);p["filename"]=name
+   cur=c.execute("INSERT INTO invoices(filename,sha256,source_type,payload) VALUES(?,?,?,?)",(name,sha,kind,json.dumps(p,ensure_ascii=False)))
+   invoice_id=cur.lastrowid
+   c.execute("INSERT INTO audit(invoice_id,action,detail) VALUES(?,?,?)",(invoice_id,"created","Uploaded in replacement batch"))
+   created.append(invoice_id)
+  return created
