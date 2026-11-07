@@ -1,0 +1,1 @@
+fastapi>=0.110,<1\nuvicorn[standard]>=0.27\npython-multipart>=0.0.9\npydantic>=2.6\npymupdf>=1.24\nlxml>=5.1\nopenpyxl>=3.1\npython-dotenv>=1.0\n
