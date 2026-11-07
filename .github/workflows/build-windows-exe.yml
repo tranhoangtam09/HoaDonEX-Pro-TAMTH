@@ -35,6 +35,15 @@ jobs:
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean --windowed --onedir --name HoaDonEX_PRO_TAMTH --paths backend --add-data "frontend;frontend" --collect-submodules app --collect-all paddleocr --collect-all paddle --collect-all cv2 --collect-all shapely --hidden-import uvicorn.logging --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on desktop_app.py
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $iscc = Get-ChildItem "C:\\Program Files (x86)\\Inno Setup" -Filter ISCC.exe -Recurse | Select-Object -First 1
+          if (-not $iscc) { throw "ISCC.exe not found" }
+          & $iscc.FullName installer.iss
       - name: Include setup notes
         shell: pwsh
         run: |
@@ -54,6 +63,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: HoaDonEX_PRO_TAMTH_Windows_x64
-          path: dist/HoaDonEX_PRO_TAMTH/
+          path: |
+            dist/HoaDonEX_PRO_TAMTH_Setup.exe
+            dist/HoaDonEX_PRO_TAMTH/
           if-no-files-found: error
           retention-days: 30
