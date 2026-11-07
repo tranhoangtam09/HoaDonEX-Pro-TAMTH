@@ -4,7 +4,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel,ConfigDict
 from pathlib import Path
 from typing import Optional
-import hashlib,zipfile,io,hmac\nfrom openpyxl import load_workbook\nfrom .config import API_KEY,TEMPLATES
+import hashlib,zipfile,io,hmac
+from openpyxl import load_workbook
+from .config import API_KEY,TEMPLATES
 from . import db
 from .config import MAX_UPLOAD_MB,CORS_ORIGINS
 from .extract import extract
