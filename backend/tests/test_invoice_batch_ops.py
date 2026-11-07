@@ -25,3 +25,15 @@ def test_delete_one_removes_selected_record(tmp_path,monkeypatch):
  assert db.delete_one(invoice_id) is True
  assert db.get(invoice_id) is None
  assert db.delete_one(invoice_id) is False
+
+def test_replace_batch_is_atomic_and_resets_old_batch_ids(tmp_path,monkeypatch):
+ monkeypatch.setattr(db,"DB_PATH",tmp_path/"atomic.sqlite3")
+ db.init()
+ old_id,_=db.save("old.pdf","old-sha","pdf",{"seller_name":"Old"})
+ new_ids=db.replace_batch([
+  ("new-a.pdf","new-sha-a","pdf",{"seller_name":"New A"}),
+  ("new-b.pdf","new-sha-b","pdf",{"seller_name":"New B"})
+ ])
+ assert old_id not in new_ids
+ assert new_ids==[1,2]
+ assert [x["filename"] for x in db.all()]==["new-b.pdf","new-a.pdf"]
