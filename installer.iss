@@ -15,7 +15,6 @@ ArchitecturesInstallIn64BitMode=x64
 UninstallDisplayIcon={app}\HoaDonEX_PRO_TAMTH.exe
 
 [Languages]
-Name: "vietnamese"; MessagesFile: "compiler:Languages\Vietnamese.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
