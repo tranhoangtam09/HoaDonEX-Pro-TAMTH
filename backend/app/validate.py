@@ -1,6 +1,6 @@
 import re,datetime
 def validate(x):
- w=list(x.get("warnings") or [])
+ w=list(x.get("warnings") or [])\n if x.get("user_reviewed"):w=[m for m in w if "OCR" not in m and "Chưa cài OCR" not in m]
  for k,label in [("seller_name","Tên đơn vị phát hành"),("tax_code","Mã số thuế"),("invoice_form","Ký hiệu mẫu số"),("invoice_symbol","Ký hiệu hóa đơn"),("invoice_number","Số hóa đơn"),("invoice_date","Ngày hóa đơn"),("total_amount","Số tiền hóa đơn")]:
   if x.get(k) in (None,""):w.append("Thiếu trường: "+label)
  tax=x.get("tax_code")
