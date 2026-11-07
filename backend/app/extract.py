@@ -83,37 +83,47 @@ def parse_invoice_text(text,name,source_type):
 
 def _pdf_blocks(page):
  return sorted([(b[1],b[0],b[3],clean(b[4])) for b in page.get_text("blocks") if len(b)>4 and clean(b[4])],key=lambda z:(z[0],z[1]))
-def _amount_near_label(blocks,labels):
+def _amount_near_label(blocks,labels,allow_zero=False):
  for y,x0,y1,txt in blocks:
-  if any(label in txt.lower() for label in labels):
+  low=txt.lower()
+  if any(label in low for label in labels):
    vals=re.findall(r"(?<!\\d)(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?!\\d)",txt)
    vals=[v for v in vals if len(re.sub(r"\\D","",v))>=4]
    if vals:return number(vals[0])
+   if allow_zero and re.search(r"\\b(?:kct|không chịu thuế)\\b",low) and re.search(r"\\b0\\b",txt):
+    return 0
    near=[(abs(by-y),btxt) for by,bx,by1,btxt in blocks if abs(by-y)<=5 and btxt!=txt]
    for _,other in sorted(near):
     vals=re.findall(r"(?<!\\d)(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?!\\d)",other)
     vals=[v for v in vals if len(re.sub(r"\\D","",v))>=4]
     if vals:return number(vals[0])
+    if allow_zero and re.search(r"\\b0\\b",other):return 0
  return None
 def _parse_pdf_layout(data,x):
  try:
   doc=fitz.open(stream=data,filetype="pdf")
   if not doc:return x
-  blocks=_pdf_blocks(doc[0])
-  header=[b[3] for b in blocks if re.search(r"ký hiệu|\\(sign\\)|\\bSố\\b|\\(no\\)",b[3],re.I)]
-  header_text="\\n".join(header+[b[3] for b in blocks if re.search(r"\\b\\d{1,2}[A-Z][A-Z0-9/-]{2,}\\b|\\b\\d{5,}\\b",b[3]) and 160<=b[0]<=280])
+  page_blocks=[]
+  for page_index,page in enumerate(doc):
+   # Keep coordinates ordered across pages while retaining each page's original layout.
+   page_blocks.extend(_pdf_blocks(page))
+  # Header/party fields are on page one; totals and item rows may be on later pages.
+  first_page_blocks=_pdf_blocks(doc[0])
+  blocks=page_blocks
+  header=[b[3] for b in first_page_blocks if re.search(r"ký hiệu|\\(sign\\)|\\bSố\\b|\\(no\\)",b[3],re.I)]
+  header_text="\\n".join(header+[b[3] for b in first_page_blocks if re.search(r"\\b\\d{1,2}[A-Z][A-Z0-9/-]{2,}\\b|\\b\\d{5,}\\b",b[3]) and 160<=b[0]<=310])
   sm=re.search(r"\\b(\\d{1,2}[A-Z][A-Z0-9/-]{2,})\\b",header_text,re.I)
   nm=re.search(r"(?<!\\d)(\\d{5,})(?!\\d)",header_text)
   if sm:x["invoice_form"],x["invoice_symbol"]=split_symbol(sm.group(1))
   if nm:x["invoice_number"]=nm.group(1)
   # MeInvoice may place "Ngày/năm" in separate text blocks.
-  date_text=" ".join(b[3] for b in blocks if 150<=b[0]<=310)
+  date_text=" ".join(b[3] for b in first_page_blocks if 150<=b[0]<=310)
   dm=re.search(r"(\\d{1,2})\\s+tháng\\s+(\\d{1,2})\\s+(?:năm\\s*)?(\\d{4})",date_text,re.I)
   if dm:
    try:x["invoice_date"]=datetime.date(int(dm.group(3)),int(dm.group(2)),int(dm.group(1))).isoformat()
    except ValueError:pass
   # Buyer company and tax code often appear immediately BEFORE their labels in MeInvoice text layers.
-  for by,bx,by1,bt in blocks:
+  for by,bx,by1,bt in first_page_blocks:
    if re.search(r"tên đơn vị",bt,re.I):
     before=re.split(r"tên đơn vị",bt,flags=re.I,maxsplit=1)[0]
     candidate=clean(before)
@@ -122,13 +132,13 @@ def _parse_pdf_layout(data,x):
    if re.search(r"mã số thuế|tax code",bt,re.I) and by>240:
     mt=re.search(r"(?<!\\d)(\\d{10}(?:-\\d{3})?)(?!\\d)",bt)
     if mt:x["buyer_tax_code"]=tax_clean(mt.group(1))
-  seller_idx=next((i for i,b in enumerate(blocks) if re.search(r"đơn vị bán hàng",b[3],re.I)),None)
+  seller_idx=next((i for i,b in enumerate(first_page_blocks) if re.search(r"đơn vị bán hàng",b[3],re.I)),None)
   if seller_idx is not None:
-   label_block=blocks[seller_idx][3]
+   label_block=first_page_blocks[seller_idx][3]
    tail=re.split(r"đơn vị bán hàng\\s*[:：]?",label_block,flags=re.I,maxsplit=1)
    parts=[clean(tail[-1])] if tail and clean(tail[-1]) else []
-   base_y=blocks[seller_idx][0]
-   for by,bx,by1,bt in blocks[seller_idx+1:]:
+   base_y=first_page_blocks[seller_idx][0]
+   for by,bx,by1,bt in first_page_blocks[seller_idx+1:]:
     if by-base_y>48:break
     if re.search(r"mã số thuế|địa chỉ|số tài khoản|hóa đơn giá trị|mã cqt",bt,re.I):break
     if re.fullmatch(r"[A-ZÀ-Ỹ0-9 .,&/-]{2,}",bt,re.I):parts.append(bt)
@@ -140,14 +150,14 @@ def _parse_pdf_layout(data,x):
      mt=re.search(r"(?<!\\d)(\\d{10}(?:-\\d{3})?)(?!\\d)",bt)
      if mt:x["tax_code"]=tax_clean(mt.group(1));break
   else:
-   for _,_,_,bt in blocks[:8]:
+   for _,_,_,bt in first_page_blocks[:8]:
     if re.search(r"^(?:CÔNG TY|DOANH NGHIỆP|HỘ KINH DOANH)",bt,re.I):
      x["seller_name"]=bt;break
-   for _,_,_,bt in blocks[:12]:
+   for _,_,_,bt in first_page_blocks[:12]:
     mt=re.search(r"(?<!\\d)(\\d{10}(?:-\\d{3})?)(?!\\d)",bt)
     if mt:x["tax_code"]=tax_clean(mt.group(1));break
   for labels,key in [(["tổng tiền thanh toán","total amount"],"total_amount"),(["cộng tiền hàng","total before vat"],"subtotal"),(["tiền thuế gtgt","vat amount"],"vat_amount")]:
-   value=_amount_near_label(blocks,labels)
+   value=_amount_near_label(blocks,labels,allow_zero=(key=="vat_amount"))
    if value is not None:x[key]=value
   start=next((i for i,b in enumerate(blocks) if "tên hàng hóa" in b[3].lower() or "name of goods" in b[3].lower()),None)
   if start is not None:
