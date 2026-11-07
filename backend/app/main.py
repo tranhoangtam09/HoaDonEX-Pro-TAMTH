@@ -4,7 +4,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel,ConfigDict
 from pathlib import Path
 from typing import Optional
-import hashlib,zipfile,io
+import hashlib,zipfile,io,hmac\nfrom openpyxl import load_workbook\nfrom .config import API_KEY,TEMPLATES
 from . import db
 from .config import MAX_UPLOAD_MB,CORS_ORIGINS
 from .extract import extract
@@ -13,6 +13,15 @@ from .exporter import export_workbook
 app=FastAPI(title="HOA DON EX PRO – TAMTH",version="1.1.0")
 app.add_middleware(CORSMiddleware,allow_origins=CORS_ORIGINS,allow_methods=["GET","POST","PATCH"],allow_headers=["*"])
 ALLOWED={".pdf",".xml",".jpg",".jpeg",".png",".tif",".tiff",".webp"}
+@app.middleware("http")
+async def require_api_key(request,call_next):
+ if API_KEY and request.url.path not in ("/health","/docs","/openapi.json","/redoc"):
+  supplied=request.headers.get("X-API-Key","")
+  if not hmac.compare_digest(supplied,API_KEY):
+   from fastapi.responses import JSONResponse
+   return JSONResponse(status_code=401,content={"detail":"API key không hợp lệ hoặc chưa được nhập."})
+ return await call_next(request)
+
 @app.on_event("startup")
 def startup():db.init()
 @app.get("/health")
@@ -61,6 +70,28 @@ async def upload(files:list[UploadFile]=File(...)):
   elif Path(name).suffix.lower() in ALLOWED:results.append(store(data,name))
   else:raise HTTPException(415,"Định dạng không hỗ trợ: "+name)
  return {"created":sum(1 for q in results if q["created"]),"items":results}
+@app.get("/templates/status")
+def template_status():
+ return {"transfer":(TEMPLATES/"Bang_ke_hoa_don_chuyen_khoan_VND.xlsx").exists(),"compensation":(TEMPLATES/"Bang_ke_hoa_don_bu_dap_VND.xlsx").exists()}
+
+@app.post("/templates/{kind}")
+async def upload_template(kind:str,file:UploadFile=File(...)):
+ expected={"transfer":("Bang_ke_hoa_don_chuyen_khoan_VND.xlsx","Bảng kê hóa đơn",12),"compensation":("Bang_ke_hoa_don_bu_dap_VND.xlsx","Bảng kê hóa đơn GN bù đắp",13)}
+ if kind not in expected:raise HTTPException(400,"Loại mẫu Excel không hợp lệ.")
+ filename,sheet_name,columns=expected[kind]
+ data=await file.read()
+ if len(data)>10*1024*1024:raise HTTPException(413,"Mẫu Excel vượt quá 10 MB.")
+ try:
+  wb=load_workbook(io.BytesIO(data),read_only=True,data_only=False)
+  if sheet_name not in wb.sheetnames:raise HTTPException(422,"Không đúng tên sheet của mẫu gốc: "+sheet_name)
+  ws=wb[sheet_name]
+  if ws.max_column!=columns or ws["A2"].value!="STT":raise HTTPException(422,"Cấu trúc mẫu Excel không đúng số cột hoặc tiêu đề dòng 2.")
+ except HTTPException:raise
+ except Exception as exc:raise HTTPException(422,"Không đọc được file Excel: "+str(exc))
+ TEMPLATES.mkdir(parents=True,exist_ok=True)
+ (TEMPLATES/filename).write_bytes(data)
+ return {"ok":True,"kind":kind,"filename":filename,"sheet":sheet_name,"columns":columns}
+
 @app.post("/export/{kind}")
 def export(kind:str):
  rows=db.all()
