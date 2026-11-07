@@ -1,5 +1,7 @@
+import asyncio
 import fitz
-from fastapi.testclient import TestClient
+import pytest
+from pydantic import ValidationError
 from app import db,main
 
 def test_merge_selected_pdf_invoices_returns_combined_pdf(tmp_path,monkeypatch):
@@ -18,17 +20,19 @@ def test_merge_selected_pdf_invoices_returns_combined_pdf(tmp_path,monkeypatch):
   source.write_bytes(raw)
   invoice_id,_=db.save(source.name,f"hash-{n}","pdf",{"filename":source.name,"source_type":"pdf_text","source_path":str(source)})
   ids.append(invoice_id)
- with TestClient(main.app) as client:
-  response=client.post("/invoices/merge",json={"ids":ids})
- assert response.status_code==200
- assert response.headers["content-type"].startswith("application/pdf")
- merged=fitz.open(stream=response.content,filetype="pdf")
+ response=main.merge_invoices(main.MergeRequest(ids=ids))
+ async def collect():
+  chunks=[]
+  async for chunk in response.body_iterator:chunks.append(chunk)
+  return b"".join(chunks)
+ output=asyncio.run(collect())
+ assert response.media_type=="application/pdf"
+ merged=fitz.open(stream=output,filetype="pdf")
  assert merged.page_count==2
  assert "INVOICE PAGE 1" in merged[0].get_text()
  assert "INVOICE PAGE 2" in merged[1].get_text()
  merged.close()
 
 def test_merge_rejects_more_than_ten_ids():
- with TestClient(main.app) as client:
-  response=client.post("/invoices/merge",json={"ids":list(range(1,12))})
- assert response.status_code==422
+ with pytest.raises(ValidationError):
+  main.MergeRequest(ids=list(range(1,12)))
