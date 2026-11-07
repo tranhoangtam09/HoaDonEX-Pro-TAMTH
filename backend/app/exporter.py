@@ -24,12 +24,6 @@ def export_workbook(items,kind):
  if kind not in TEMPLATE_FILES:raise HTTPException(400,"Loại bảng kê không hợp lệ.")
  template=TEMPLATES/TEMPLATE_FILES[kind]
  if not template.exists():raise HTTPException(400,"Máy chủ chưa được cấu hình mẫu Excel gốc: "+TEMPLATE_FILES[kind])
- from .validate import validate_for_export
- errors=[]
- for item in items:
-  ok,missing=validate_for_export(item,kind)
-  if not ok:errors.append(f"{item.get('filename','Hồ sơ')}: {', '.join(missing)}")
- if errors:raise HTTPException(422,"Chưa đủ thông tin để xuất bảng kê. "+" | ".join(errors[:8]))
  wb=load_workbook(template);sheet=SHEET_NAMES[kind]
  if sheet not in wb.sheetnames:raise HTTPException(500,"Tên sheet trong mẫu gốc không đúng: "+sheet)
  ws=wb[sheet];first_data_row=3;style_row=3
