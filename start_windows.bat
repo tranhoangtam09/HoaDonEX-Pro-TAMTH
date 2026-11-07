@@ -28,7 +28,10 @@ if not exist "backend\.venv\Scripts\python.exe" (
   %PYTHON_CMD% -m venv backend\.venv
   if errorlevel 1 goto failed
 )
-echo [2/4] Cai thu vien co ban...
+echo [2/4] Khoi tao pip trong moi truong ao...
+backend\.venv\Scripts\python.exe -m ensurepip --upgrade
+if errorlevel 1 goto failed
+echo Cai thu vien co ban...
 backend\.venv\Scripts\python.exe -m pip install --upgrade pip
 backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
 if errorlevel 1 goto failed
