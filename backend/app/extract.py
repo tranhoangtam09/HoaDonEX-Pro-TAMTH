@@ -60,6 +60,9 @@ def parse_invoice_text(text,name,source_type):
  if m:x["tax_code"]=tax_clean(m.group(1))
  buyer=t.split("Họ tên người mua hàng",1)[1] if "Họ tên người mua hàng" in t else ""
  x["buyer_name"]=field_after(buyer,[r"Tên đơn vị",r"Người mua hàng"])
+ if not x["buyer_name"]:
+  m=re.search(r"(?im)^\\s*Tên đơn vị\\s*[:：]?\\s*\\n\\s*([^\\n\\r]+)",buyer)
+  if m:x["buyer_name"]=clean(m.group(1))
  x["buyer_tax_code"]=tax_clean(field_after(buyer,[r"Mã số thuế",r"MST"]) or "")
  x["seller_address"]=field_after(t,[r"Địa chỉ"]);x["buyer_address"]=field_after(buyer,[r"Địa chỉ"])
  for p,k in [(r"(?:III\.?\s*)?Tổng cộng tiền thanh toán\s*[:：]?\s*([\d.,]+)","total_amount"),(r"(?:I\s*)?Cộng tiền hàng hóa, dịch vụ\s*[:：]?\s*([\d.,]+)","subtotal"),(r"(?:Tiền thuế GTGT|Thuế GTGT)\s*[:：]?\s*([\d.,]+)","vat_amount")]:
