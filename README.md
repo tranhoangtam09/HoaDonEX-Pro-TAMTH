@@ -54,3 +54,11 @@ pip install -r requirements.txt pytest
 pytest -q
 node --check ../frontend/app.js
 ```
+
+
+## Cập nhật chức năng 1.2
+- Khi nạp một lô hóa đơn mới, hệ thống đọc toàn bộ lô trước; nếu đọc thành công mới thay thế danh sách cũ. Nếu lô mới bị lỗi, dữ liệu cũ được giữ nguyên.
+- Có thể xóa từng hồ sơ hoặc xóa hàng loạt hồ sơ không nhận dạng đủ tên đơn vị phát hành, số hóa đơn và ngày hóa đơn.
+- Chọn tối đa 10 hồ sơ PDF/ảnh để gộp thành một PDF. Thứ tự trang theo thứ tự chọn. XML không thể gộp trực tiếp; cần chuyển XML sang PDF trước.
+- Tệp gốc được lưu trong thư mục dữ liệu cục bộ để hỗ trợ gộp PDF. Sao lưu toàn bộ thư mục dữ liệu trước khi chuyển máy hoặc cài lại.
+- Giao diện mới có bảng rà soát, bộ đếm chọn hồ sơ và thao tác xóa/gộp. Thời gian OCR phụ thuộc số trang, chất lượng ảnh và cấu hình máy tính.
