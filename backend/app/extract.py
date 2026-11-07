@@ -6,8 +6,11 @@ def blank(name,kind):
 def clean(s):return re.sub(r"\s+"," ",str(s or "")).strip(" :：\t\r\n") or None
 def parse_date(s):
  if not s:return None
- s=clean(s);m=re.search(r"(\d{1,2})\s*[/.-]\s*(\d{1,2})\s*[/.-]\s*(\d{4})",s)
- if not m:m=re.search(r"(?:ngày\s*)?(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})",s,re.I)
+ s=clean(s)
+ try:return datetime.date.fromisoformat(s[:10]).isoformat()
+ except (ValueError,TypeError):pass
+ m=re.search(r"(\\d{1,2})\\s*[/.-]\\s*(\\d{1,2})\\s*[/.-]\\s*(\\d{4})",s)
+ if not m:m=re.search(r"(?:ngày\\s*)?(\\d{1,2})\\s+tháng\\s+(\\d{1,2})\\s+năm\\s+(\\d{4})",s,re.I)
  if not m:return None
  try:return datetime.date(int(m.group(3)),int(m.group(2)),int(m.group(1))).isoformat()
  except ValueError:return None
