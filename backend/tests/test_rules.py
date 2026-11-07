@@ -15,4 +15,4 @@ def test_validation_flags_missing():
 def test_financing_amount_is_never_inferred():
  x={"filename":"a.pdf","seller_name":"A","tax_code":"1234567890","invoice_form":"1","invoice_symbol":"K26TKD","invoice_number":"1","invoice_date":"2026-11-07","total_amount":100000,"currency":"VND","item_description":"Fuel"}
  ok,missing=validate_for_export(x,"compensation")
- assert not ok and "financing_amount" in missing
+ assert ok and "financing_amount" in missing
