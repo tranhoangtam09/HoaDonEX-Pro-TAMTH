@@ -1,6 +1,7 @@
 import re,datetime
 def validate(x):
- w=list(x.get("warnings") or [])\n if x.get("user_reviewed"):w=[m for m in w if "OCR" not in m and "Chưa cài OCR" not in m]
+ w=list(x.get("warnings") or [])
+ if x.get("user_reviewed"):w=[m for m in w if "OCR" not in m and "Chưa cài OCR" not in m]
  for k,label in [("seller_name","Tên đơn vị phát hành"),("tax_code","Mã số thuế"),("invoice_form","Ký hiệu mẫu số"),("invoice_symbol","Ký hiệu hóa đơn"),("invoice_number","Số hóa đơn"),("invoice_date","Ngày hóa đơn"),("total_amount","Số tiền hóa đơn")]:
   if x.get(k) in (None,""):w.append("Thiếu trường: "+label)
  tax=x.get("tax_code")
@@ -16,5 +17,6 @@ def validate_for_export(x,kind):
  if kind=="transfer":required+=["beneficiary_account"]
  missing=[k for k in required if x.get(k) in (None,"")]
  if missing:return False,missing
+ if not x.get("is_valid"):return False,x.get("warnings") or ["Hồ sơ chưa hợp lệ."]
  if kind=="compensation" and x.get("payment_amount") not in (None,"") and not x.get("payment_date"):return False,["payment_date"]
  return True,[]
