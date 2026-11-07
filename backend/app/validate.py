@@ -10,7 +10,7 @@ def validate(x):
   if x.get(k) in (None,""):w.append("Thiếu trường: "+label)
  for key,label in [("tax_code","Mã số thuế đơn vị phát hành"),("buyer_tax_code","Mã số thuế đơn vị thụ hưởng")]:
   tax=x.get(key)
-  if tax and not re.fullmatch(r"\\d{10}(?:\\d{3})?",str(tax)):w.append(label+" cần kiểm tra định dạng.")
+  if tax and not re.fullmatch(r"\d{10}(?:\d{3})?",str(tax)):w.append(label+" cần kiểm tra định dạng.")
  for key,label in [("invoice_date","Ngày hóa đơn"),("payment_date","Ngày đã thanh toán")]:
   if x.get(key):
    try:datetime.date.fromisoformat(str(x[key]))
