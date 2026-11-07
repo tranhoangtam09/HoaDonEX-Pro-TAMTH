@@ -10,7 +10,10 @@ def resource_path(relative: str) -> Path:
     return base / relative
 
 def writable_root() -> Path:
-    return Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+    if getattr(sys, "frozen", False):
+        base = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "HoaDonEX_PRO_TAMTH"
+        return base
+    return Path(__file__).resolve().parent
 
 ROOT = writable_root()
 DATA = ROOT / "data"
