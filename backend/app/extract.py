@@ -115,9 +115,9 @@ def extract(data,name):
    invoice_number=val(common,"shdon","sohoadon","invoiceno"),
    invoice_date=parse_date(val(common,"nlap","ngaylap","invoicedate") or ""),
    currency=val(common,"dvtte","loaitien","currency") or "VND",
-   total_amount=number(val(totals,"tgtttoan","tongcongthanhtoan","totalamount")),
+   total_amount=number(val(totals,"tgttoan","tongcongthanhtoan","totalamount")),
    subtotal=number(val(totals,"tgtcthue","tienhangtruoc thue","subtotal")),
-   vat_amount=number(val(totals,"tgttthue","tienthue","vatamount")),
+   vat_amount=number(val(totals,"tgtthue","tienthue","vatamount")),
    item_description=val(goods,"thhdvu","tenhanghoa","itemname")
   )
   if not x["seller_name"] or not x["tax_code"]:x["warnings"].append("XML không có đủ thông tin đơn vị phát hành; cần kiểm tra cấu trúc nhà cung cấp.")
