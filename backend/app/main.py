@@ -14,7 +14,7 @@ from .config import MAX_UPLOAD_MB,CORS_ORIGINS
 from .extract import extract
 from .validate import validate
 from .exporter import export_workbook
-app=FastAPI(title="HOA DON EX PRO – TAMTH",version="1.2.0")
+app=FastAPI(title="HOA DON EX PRO – TAMTH",version="1.3.0")
 app.add_middleware(CORSMiddleware,allow_origins=CORS_ORIGINS,allow_methods=["GET","POST","PATCH","DELETE"],allow_headers=["*"])
 ALLOWED={".pdf",".xml",".jpg",".jpeg",".png",".tif",".tiff",".webp"}
 UPLOADS=DATA/"uploads"
@@ -30,7 +30,7 @@ async def require_api_key(request,call_next):
 @app.on_event("startup")
 def startup():db.init()
 @app.get("/health")
-def health():return {"status":"ok","app":"HOA DON EX PRO – TAMTH","version":"1.2.0","ocr":"optional-paddleocr-vi"}
+def health():return {"status":"ok","app":"HOA DON EX PRO – TAMTH","version":"1.3.0","invoice_count":len(db.all()),"batch_replace":True,"ocr":"optional-paddleocr-vi"}
 @app.get("/invoices")
 def invoices():return {"items":[validate(x) for x in db.all()]}
 @app.get("/invoices/{invoice_id}")
@@ -68,7 +68,7 @@ def store(data,name,extracted=None):
 @app.post("/invoices/upload")
 async def upload(files:list[UploadFile]=File(...)):
  if not files:raise HTTPException(400,"Chưa chọn tệp.")
- # Parse the entire new batch first. Only after successful parsing replace the old batch.
+ # Parse every source first. Do not touch the current batch until all files are readable.
  staged=[]
  for f in files:
   name=Path(f.filename or "upload").name;data=await f.read()
@@ -87,10 +87,21 @@ async def upload(files:list[UploadFile]=File(...)):
    staged.append((data,name,validate(extract(data,name))))
   else:raise HTTPException(415,"Định dạng không hỗ trợ: "+name)
  if not staged:raise HTTPException(400,"Không tìm thấy hóa đơn hợp lệ trong tệp đã chọn.")
- db.clear_all()
- if UPLOADS.exists():shutil.rmtree(UPLOADS,ignore_errors=True)
- results=[store(blob,name,x) for blob,name,x in staged]
- return {"replaced":True,"removed_previous":True,"created":sum(1 for q in results if q["created"]),"items":results}
+ # Persist source files first; then atomically replace database rows in one SQLite transaction.
+ UPLOADS.mkdir(parents=True,exist_ok=True)
+ records=[]
+ for blob,name,x in staged:
+  sha=hashlib.sha256(blob).hexdigest()
+  source=UPLOADS/(sha+Path(name).suffix.lower())
+  try:source.write_bytes(blob)
+  except OSError as exc:raise HTTPException(507,f"Không lưu được tệp gốc {name}: {exc}")
+  x["source_path"]=str(source)
+  records.append((name,sha,Path(name).suffix.lower(),x))
+ ids=db.replace_batch(records)
+ results=[]
+ for (blob,name,x),invoice_id in zip(staged,ids):
+  results.append({"id":invoice_id,"filename":name,**x})
+ return {"replaced":True,"removed_previous":True,"created":len(results),"items":results,"batch_count":len(results),"message":f"Đã thay thế toàn bộ dữ liệu cũ bằng {len(results)} hóa đơn mới."}
 
 @app.delete("/invoices/unrecognized")
 def delete_unrecognized():
