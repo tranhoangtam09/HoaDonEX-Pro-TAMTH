@@ -38,13 +38,26 @@ jobs:
           pyinstaller --noconfirm --clean --windowed --onedir --name HoaDonEX_PRO_TAMTH --paths backend --add-data "frontend;frontend" --collect-submodules app --collect-all paddleocr --collect-all paddle --collect-all cv2 --collect-all shapely --hidden-import uvicorn.logging --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on desktop_app.py
       - name: Install Inno Setup
         shell: pwsh
-        run: choco install innosetup --no-progress -y
+        run: choco install innosetup --no-progress -y --force
       - name: Build Windows installer
         shell: pwsh
         run: |
-          $iscc = Get-ChildItem "C:\\Program Files (x86)\\Inno Setup" -Filter ISCC.exe -Recurse | Select-Object -First 1
-          if (-not $iscc) { throw "ISCC.exe not found" }
+          $candidates = @(
+            "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe",
+            "C:\\Program Files\\Inno Setup 6\\ISCC.exe",
+            "C:\\Program Files (x86)\\Inno Setup\\ISCC.exe",
+            "C:\\Program Files\\Inno Setup\\ISCC.exe"
+          )
+          $iscc = $null
+          foreach ($candidate in $candidates) {
+            if (Test-Path $candidate) { $iscc = Get-Item $candidate; break }
+          }
+          if (-not $iscc) {
+            $iscc = Get-ChildItem "C:\\Program Files (x86)", "C:\\Program Files", "C:\\ProgramData\\chocolatey\\lib\\innosetup" -Filter ISCC.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          if (-not $iscc) { throw "ISCC.exe not found after Inno Setup installation" }
           & $iscc.FullName installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compiler failed with exit code $LASTEXITCODE" }
       - name: Include setup notes
         shell: pwsh
         run: |
