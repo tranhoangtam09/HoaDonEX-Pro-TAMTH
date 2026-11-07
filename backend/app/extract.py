@@ -112,6 +112,16 @@ def _parse_pdf_layout(data,x):
   if dm:
    try:x["invoice_date"]=datetime.date(int(dm.group(3)),int(dm.group(2)),int(dm.group(1))).isoformat()
    except ValueError:pass
+  # Buyer company and tax code often appear immediately BEFORE their labels in MeInvoice text layers.
+  for by,bx,by1,bt in blocks:
+   if re.search(r"tên đơn vị",bt,re.I):
+    before=re.split(r"tên đơn vị",bt,flags=re.I,maxsplit=1)[0]
+    candidate=clean(before)
+    if candidate and len(candidate)>5 and not re.search(r"họ tên|buyer|payment|chuyển khoản",candidate,re.I):
+     x["buyer_name"]=candidate
+   if re.search(r"mã số thuế|tax code",bt,re.I) and by>240:
+    mt=re.search(r"(?<!\\d)(\\d{10}(?:-\\d{3})?)(?!\\d)",bt)
+    if mt:x["buyer_tax_code"]=tax_clean(mt.group(1))
   seller_idx=next((i for i,b in enumerate(blocks) if re.search(r"đơn vị bán hàng",b[3],re.I)),None)
   if seller_idx is not None:
    label_block=blocks[seller_idx][3]
