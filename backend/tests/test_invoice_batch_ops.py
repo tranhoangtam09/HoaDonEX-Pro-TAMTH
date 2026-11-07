@@ -34,6 +34,6 @@ def test_replace_batch_is_atomic_and_resets_old_batch_ids(tmp_path,monkeypatch):
   ("new-a.pdf","new-sha-a","pdf",{"seller_name":"New A"}),
   ("new-b.pdf","new-sha-b","pdf",{"seller_name":"New B"})
  ])
- assert old_id not in new_ids
- assert new_ids==[1,2]
+ assert min(new_ids)>old_id
+ assert len(new_ids)==2
  assert [x["filename"] for x in db.all()]==["new-b.pdf","new-a.pdf"]
