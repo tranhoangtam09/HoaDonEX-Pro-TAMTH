@@ -73,7 +73,6 @@ def replace_batch(records):
  with conn() as c:
   c.execute("DELETE FROM audit")
   c.execute("DELETE FROM invoices")
-  c.execute("DELETE FROM sqlite_sequence WHERE name='invoices'")
   created=[]
   for name,sha,kind,payload in records:
    p=dict(payload);p.pop("id",None);p["filename"]=name
