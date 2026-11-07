@@ -1,0 +1,59 @@
+name: Build Windows EXE
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "desktop_app.py"
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/build-windows-exe.yml"
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-ocr.txt
+      - name: Install application and OCR dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements-ocr.txt
+          python -m pip install pyinstaller
+      - name: Build portable Windows application
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --windowed --onedir --name HoaDonEX_PRO_TAMTH --paths backend --add-data "frontend;frontend" --collect-submodules app --collect-all paddleocr --collect-all paddle --collect-all cv2 --collect-all shapely --hidden-import uvicorn.logging --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on desktop_app.py
+      - name: Include setup notes
+        shell: pwsh
+        run: |
+          @"
+          HOA DON EX PRO – TAMTH | WINDOWS PORTABLE
+
+          1. Giai nen toan bo thu muc.
+          2. Chay HoaDonEX_PRO_TAMTH.exe.
+          3. Lan dau can Internet de PaddleOCR tai mo hinh nhan dang neu chua co.
+          4. Nap hai mau Excel goc tai muc Nap hai mau Excel goc.
+          5. Du lieu hoa don duoc luu trong thu muc data canh file EXE.
+
+          Khong can cai Python. Khong can mo CMD. Khong can may chu thue bao.
+          Moi may tinh co co so du lieu rieng.
+          "@ | Set-Content -Encoding UTF8 dist/HoaDonEX_PRO_TAMTH/README_CAI_DAT.txt
+      - name: Upload portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: HoaDonEX_PRO_TAMTH_Windows_x64
+          path: dist/HoaDonEX_PRO_TAMTH/
+          if-no-files-found: error
+          retention-days: 30
