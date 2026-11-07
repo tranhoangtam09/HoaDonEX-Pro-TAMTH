@@ -80,6 +80,71 @@ def parse_invoice_text(text,name,source_type):
  if m:x["order_reference"]=clean(m.group(1))
  if not x["invoice_form"] or not x["invoice_symbol"]:x["warnings"].append("Chưa tách được ký hiệu mẫu số và ký hiệu hóa đơn.")
  return x
+
+def _pdf_blocks(page):
+ return sorted([(b[1],b[0],b[3],clean(b[4])) for b in page.get_text("blocks") if len(b)>4 and clean(b[4])],key=lambda z:(z[0],z[1]))
+def _amount_near_label(blocks,labels):
+ for y,x0,y1,txt in blocks:
+  if any(label in txt.lower() for label in labels):
+   vals=re.findall(r"(?<!\\d)(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?!\\d)",txt)
+   vals=[v for v in vals if len(re.sub(r"\\D","",v))>=4]
+   if vals:return number(vals[0])
+   near=[(abs(by-y),btxt) for by,bx,by1,btxt in blocks if abs(by-y)<=5 and btxt!=txt]
+   for _,other in sorted(near):
+    vals=re.findall(r"(?<!\\d)(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?!\\d)",other)
+    vals=[v for v in vals if len(re.sub(r"\\D","",v))>=4]
+    if vals:return number(vals[0])
+ return None
+def _parse_pdf_layout(data,x):
+ try:
+  doc=fitz.open(stream=data,filetype="pdf")
+  if not doc:return x
+  blocks=_pdf_blocks(doc[0])
+  header=[b[3] for b in blocks if re.search(r"ký hiệu|\\(sign\\)|\\bSố\\b|\\(no\\)",b[3],re.I)]
+  header_text="\\n".join(header+[b[3] for b in blocks if re.search(r"\\b\\d{1,2}[A-Z][A-Z0-9/-]{2,}\\b|\\b\\d{5,}\\b",b[3]) and b[0]<270 and b[1]<320])
+  sm=re.search(r"\\b(\\d{1,2}[A-Z][A-Z0-9/-]{2,})\\b",header_text,re.I)
+  nm=re.search(r"(?<!\\d)(\\d{5,})(?!\\d)",header_text)
+  if sm:x["invoice_form"],x["invoice_symbol"]=split_symbol(sm.group(1))
+  if nm:x["invoice_number"]=nm.group(1)
+  seller_idx=next((i for i,b in enumerate(blocks) if re.search(r"đơn vị bán hàng",b[3],re.I)),None)
+  if seller_idx is not None:
+   label_block=blocks[seller_idx][3]
+   tail=re.split(r"đơn vị bán hàng\\s*[:：]?",label_block,flags=re.I,maxsplit=1)
+   parts=[clean(tail[-1])] if tail and clean(tail[-1]) else []
+   base_y=blocks[seller_idx][0]
+   for by,bx,by1,bt in blocks[seller_idx+1:]:
+    if by-base_y>48:break
+    if re.search(r"mã số thuế|địa chỉ|số tài khoản|hóa đơn giá trị|mã cqt",bt,re.I):break
+    if re.fullmatch(r"[A-ZÀ-Ỹ0-9 .,&/-]{2,}",bt,re.I):parts.append(bt)
+   seller=clean(" ".join(p for p in parts if p))
+   if seller:x["seller_name"]=seller
+   for by,bx,by1,bt in blocks[seller_idx+1:]:
+    if by-base_y>65:break
+    if re.search(r"mã số thuế|tax code",bt,re.I):
+     mt=re.search(r"(?<!\\d)(\\d{10}(?:-\\d{3})?)(?!\\d)",bt)
+     if mt:x["tax_code"]=tax_clean(mt.group(1));break
+  else:
+   for _,_,_,bt in blocks[:8]:
+    if re.search(r"^(?:CÔNG TY|DOANH NGHIỆP|HỘ KINH DOANH)",bt,re.I):
+     x["seller_name"]=bt;break
+   for _,_,_,bt in blocks[:12]:
+    mt=re.search(r"(?<!\\d)(\\d{10}(?:-\\d{3})?)(?!\\d)",bt)
+    if mt:x["tax_code"]=tax_clean(mt.group(1));break
+  for labels,key in [(["tổng tiền thanh toán","total amount"],"total_amount"),(["cộng tiền hàng","total before vat"],"subtotal"),(["tiền thuế gtgt","vat amount"],"vat_amount")]:
+   value=_amount_near_label(blocks,labels)
+   if value is not None:x[key]=value
+  start=next((i for i,b in enumerate(blocks) if "tên hàng hóa" in b[3].lower() or "name of goods" in b[3].lower()),None)
+  if start is not None:
+   goods=[]
+   for by,bx,by1,bt in blocks[start+1:]:
+    if re.search(r"cộng tiền hàng|total before vat|thuế suất|vat rate",bt,re.I):break
+    if re.search(r"\\b\\d{1,3}(?:[.,]\\d{3})+\\b",bt) and not re.search(r"tên hàng|đơn vị tính|số lượng|đơn giá|thành tiền|^a$|^b$|^c$",bt,re.I):goods.append(bt)
+   if goods:x["item_description"]="; ".join(goods)[:500]
+  doc.close()
+ except Exception:
+  return x
+ return x
+
 def extract(data,name):
  ext=Path(name).suffix.lower()
  if ext==".xml":
@@ -125,7 +190,9 @@ def extract(data,name):
   return x
  if ext==".pdf":
   doc=fitz.open(stream=data,filetype="pdf");text="\n".join(p.get_text("text") for p in doc);doc.close()
-  x=parse_invoice_text(text,name,"pdf_text");critical=("seller_name","tax_code","buyer_name","buyer_tax_code","invoice_form","invoice_symbol","invoice_number","invoice_date","total_amount")
+  x=parse_invoice_text(text,name,"pdf_text")
+  x=_parse_pdf_layout(data,x)
+  critical=("seller_name","tax_code","buyer_name","buyer_tax_code","invoice_form","invoice_symbol","invoice_number","invoice_date","total_amount")
   if len(re.sub(r"\s","",text))<80 or any(not x.get(k) for k in critical):
    try:
     ot=pdf_to_text(data);ox=parse_invoice_text(ot,name,"paddleocr_vi")
